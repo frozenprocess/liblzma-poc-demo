@@ -1,0 +1,153 @@
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: allow-containers-access-to-localhost 
+spec:
+  order: 1001
+  selector: has(kubernetes.io/os)
+  ingress:
+  - action: Allow
+    destination:
+      nets:
+      - 127.0.0.0/8
+  egress:
+  - action: Allow
+    destination:
+      nets:
+      - 127.0.0.0/8
+---
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: deny-app-policy
+spec:
+  order: 1001
+  namespaceSelector: has(projectcalico.org/name)
+  types:
+  - Ingress
+  - Egress
+  egress:
+  - action: Allow
+    protocol: UDP
+    destination:
+      selector: 'k8s-app == "kube-dns"'
+      ports:
+      - 53
+---
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: calico-apiserver-to-kapi
+  namespace: calico-apiserver
+spec:
+  order: 1001
+  selector: 'k8s-app == "calico-apiserver"'
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: has(kubernetes.io/os)
+      namespaceSelector: global()
+      ports:
+      - 6443
+---
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: calico-kube-controllers-to-apiserver
+  namespace: calico-system
+spec:
+  order: 1001
+  selector: 'k8s-app == "calico-kube-controllers"'
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: k8s-app == "calico-apiserver"
+---
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: calico-components-to-apiserver
+spec:
+  order: 1001
+  selector: has(kubernetes.io/os)
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: 'k8s-app == "calico-apiserver"'
+      ports:
+      - 5443
+---
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: worker-nodes-to-kapi
+spec:
+  order: 1001
+  selector: has(kubernetes.io/os)
+  ingress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: has(kubernetes.io/os) && kubernetes.io/hostname == "control"
+      ports:
+      - 6443
+  # kube-schudler or other component talking to the local loopback
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: has(kubernetes.io/os) && kubernetes.io/hostname == "control"
+      ports:
+      - 6443
+---
+apiVersion: projectcalico.org/v3  
+kind: GlobalNetworkPolicy
+metadata:
+  name: srcnated-to-kapi
+spec:
+  order: 1001
+  selector: has(k8s-app) && k8s-app in {"calico-node","calico-apiserver","calico-typha","calico-kube-controllers"}
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: has(kubernetes.io/os) && kubernetes.io/hostname == "control"
+      ports:
+      - 6443
+---
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: worker-nodes-to-typha
+spec:
+  order: 1001
+  selector: has(kubernetes.io/os)
+  ingress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: has(kubernetes.io/os) && kubernetes.io/hostname == "control"
+      ports:
+      - 5473
+  # kube-schudler or other component talking to the local loopback
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: has(kubernetes.io/os) && kubernetes.io/hostname == "control"
+      ports:
+      - 5473
+---
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: log-everything 
+spec:
+  order: 100000
+  ingress:
+  - action: Log
+  egress:
+  - action: Log

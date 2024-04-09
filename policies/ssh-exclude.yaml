@@ -1,0 +1,14 @@
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: private-registry-policy
+spec:
+  order: 1001
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      nets:
+      - <YOUR-ADMIN-IP>/32
+      ports:
+      - 22
